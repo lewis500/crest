@@ -1,14 +1,19 @@
-import React, { createElement as CE, FunctionComponent } from "react";
-import { widths } from "src/constants";
+import React, {
+  createElement as CE,
+  FunctionComponent,
+  useContext
+} from "react";
+import { params } from "src/constants";
 import { colors } from "@material-ui/core";
 import { scaleLinear } from "d3-scale";
 import { makeStyles } from "@material-ui/styles";
-import TeX from "@matejmazur/react-katex";
+import memoizeone from "memoize-one";
+import { AppContext, State } from "src/ducks";
+import { constants } from "http2";
 const EMPTY = {};
 const useStyles = makeStyles({
   road: {
-    fill: colors.grey["200"],
-    stroke: "none"
+    fill: colors.grey["200"]
   },
   svg: {
     display: "inline-block",
@@ -18,261 +23,130 @@ const useStyles = makeStyles({
       fontSize: "13px"
     }
   },
+  tangent: {
+    stroke: colors.pink["A700"],
+    strokeWidth: "2px",
+    fill: "none"
+  },
   text: {
     textAlign: "center",
     fontSize: "12px",
     fontFamily: "Puritan, sans-serif"
   },
   car: {
-    fill: colors.lightBlue["500"]
-  },
-  xssd: {
-    stroke: colors.green.A400,
-    strokeWidth: "2px"
+    fill: colors.lightBlue["A400"]
   }
 });
-type Classes = ReturnType<typeof useStyles>;
 
-const WIDTH = 700,
-  HEIGHT = 175,
-  H2 = HEIGHT / 2,
+const WIDTH = 500,
+  HEIGHT = WIDTH/4,
   scale = scaleLinear()
     .range([0, WIDTH])
-    .domain([widths.start, widths.start - widths.total]);
+    .domain([0, params.total]),
+  yScale = scaleLinear()
+    .range([HEIGHT, 0])
+    .domain([0, params.total/4 ]);
 
-const lightColors = {
-  green: colors.green["400"],
-  red: colors.red["A200"],
-  yellow: colors.yellow["700"]
-};
+const CAR_WIDTH = scale(params.car.width),
+  CAR_HEIGHT = scale(params.car.height);
 
-const START = scale(0),
-  ROAD_WIDTH = START - scale(widths.road),
-  CAR_WIDTH = START - scale(widths.car.width),
-  CAR_HEIGHT = START - scale(widths.car.height),
-  R2 = ROAD_WIDTH / 2;
+const range: number[] = Array.apply(null, { length: 80 }).map(
+  (d: any, i: number) => (i / 80) * params.total
+);
 
-export const Road = CE(
-  "g",
-  {},
-  CE("rect", {
-    height: ROAD_WIDTH,
-    width: WIDTH,
-    x: 0,
-    y: H2 - R2,
-    stroke: "none",
-    fill: colors.grey["200"]
-  }),
-  CE("rect", {
-    height: HEIGHT,
-    width: ROAD_WIDTH,
-    x: START,
-    y: 0,
-    stroke: "none",
-    fill: colors.grey["200"]
-  })
+const getA = memoizeone((state: State) => (state.g2 - state.g1) / 2 / state.l);
+const getX0 = memoizeone((state: State) => {
+  let res = (-params.total * state.g2) / (state.g1 - state.g2) - state.l / 2;
+  return res;
+});
+const factor =
+  ((((180 / Math.PI) * HEIGHT) / WIDTH) * scale.domain()[1]) /
+  yScale.domain()[1];
+const deg = (g: number) => Math.atan(g) *180/Math.PI;
+const getR = memoizeone((state: State) => {
+  let x0 = getX0(state);
+  let { x } = state;
+  if (x < x0) return -deg(state.g1);
+  else if (x > x0 + state.l) return -deg(state.g2);
+  let a = getA(state);
+  return -deg(2 * (x - x0) * a + state.g1);
+});
+
+const deg2 = (g: number) => Math.atan(g);
+const getR2 = memoizeone((state: State) => {
+  let x0 = getX0(state);
+  let { x } = state;
+  if (x < x0) return deg2(state.g1);
+  else if (x > x0 + state.l) return deg2(state.g2);
+  let a = getA(state);
+  return deg2(2 * (x - x0) * a + state.g1);
+});
+const getY = memoizeone((state: State, cx?: number) => {
+  let x0 = getX0(state);
+  let x = typeof cx === "undefined" ? state.x : cx;
+  if (x < x0) return x * state.g1;
+  if (x > x0 + state.l) return state.g2 * (x - params.total);
+  let a = getA(state);
+  return (x - x0) * (x - x0) * a + state.g1 * x;
+});
+
+const getPath = memoizeone(
+  (state: State) =>
+    "M" + range.map(x => [scale(x), yScale(getY(state, x))]).join("L") + "Z"
 );
 
 export const Car: FunctionComponent<{
   x: number;
   y: number;
-  violation: boolean;
-}> = ({ x, y, violation }) => {
+  r: number;
+  className?: string;
+}> = ({ x, y, r, className }) => {
   return CE("rect", {
     width: CAR_WIDTH,
     height: CAR_HEIGHT,
-    fill: violation ? colors.red["A400"] : colors.lightBlue["A400"],
-    y: H2 + y - 4,
-    x: x - CAR_WIDTH
+    className: className || "",
+    y: -CAR_HEIGHT,
+    x: -CAR_WIDTH * 0.5,
+    transform: `translate(${x},${y}) rotate(${r}) `
   });
 };
 
-export const Light: FunctionComponent<{ color: string; classes: Classes }> = ({
-  color
-}) =>
-  CE("line", {
-    x1: START,
-    x2: START,
-    y1: H2 - R2,
-    y2: H2 + R2,
-    strokeWidth: 6,
-    stroke: color
-  });
+const r0 = Math.atan2(params.car.height, params.car.width / 2);
+const z = Math.hypot(params.car.height, params.car.width / 2);
+const Tangent = ({ state, className }: { state: State; className: string }) => {
+  let r = getR2(state)
+  let x = state.x + Math.cos(r) * params.car.width/2 - params.car.height * Math.cos(Math.PI/2 - r);
+  let y = getY(state) + Math.sin(r) * params.car.width/2 + params.car.height * Math.sin(Math.PI/2 - r);
+  let a = getA(state);
+  let b = state.g1;
+  let x0 = getX0(state);
+  let xt = x + Math.sqrt((a * (x - x0) * (x - x0) + b * x - y) / a);
+  let yt = getY(state, xt);
 
-export const S0Line: FunctionComponent<{
-  x: number;
-  classes: Classes;
-}> = (() => {
-  const line1 = CE("line", {
-    x1: 0,
-    x2: 0,
-    y1: 0,
-    y2: R2 - 10,
-    stroke: colors.grey["500"],
-    strokeWidth: "2px"
-  });
-  const line2 = CE("line", {
-    x1: 0,
-    x2: 0,
-    y1: R2 + 11,
-    y2: ROAD_WIDTH,
-    stroke: colors.grey["500"],
-    strokeWidth: "2px"
-  });
-  const math = (
-    <foreignObject width="30" height="30" y={R2 - 11} x="-7">
-      <TeX math="x_0" />
-    </foreignObject>
+  return (
+    <>
+      {/* <circle r="1" cx={scale(x)} cy={yScale(y)} fill="black" /> */}
+      <path
+        d={`M${scale(x)},${yScale(y)}L${scale(2*xt)},${yScale(yt+(yt-y)/(xt-x)*xt) }`}
+        className={className}
+      />
+    </>
   );
-  return ({ x }: { x: number }) => (
-    <g transform={`translate(${x},${H2 - R2})`}>
-      {line1}
-      {line2}
-      {math}
-    </g>
-  );
-})();
-
-type XssdLineProps = {
-  x: number;
-  classes: Classes;
 };
-const XssdLine = (() => {
-  let math = (
-    <foreignObject width="40" height="50" x="-8" y="2">
-      <TeX>{"x_{\\text{ssd}} "}</TeX>
-    </foreignObject>
-  );
-  const res: FunctionComponent<XssdLineProps> = ({ x, classes }) => (
-    <g transform={`translate(${x},${H2 + R2 + 3})`}>
-      {x > 45 && (
-        <foreignObject width="40" height="45" x={-x / 2 - 20} y={6}>
-          <div className={classes.text}>CAN STOP</div>
-        </foreignObject>
-      )}
-      <foreignObject width="40" height="45" x={(START - x) / 2 - 20} y={6}>
-        <div className={classes.text}>CAN'T STOP</div>
-      </foreignObject>
-      {math}
-      {CE("line", {
-        markerStart: "url(#arrow)",
-        stroke: colors.blue["400"],
-        strokeWidth: 2,
-        x2: -x,
-        x1: 0
-      })}
-      {CE("line", {
-        markerStart: "url(#arrow3)",
-        markerEnd: "url(#arrow3)",
-        stroke: colors.grey["400"],
-        strokeWidth: 2,
-        strokeDasharray: "2 2",
-        x2: START - x,
-        x1: 0
-      })}
-    </g>
-  );
-  return res;
-})();
 
-const XclLine = (() => {
-  let math = (
-    <foreignObject width="30" height="30" x="-8" y="-30">
-      <TeX>{"x_{\\text{cl}} "}</TeX>
-    </foreignObject>
-  );
-
-  const res: FunctionComponent<{ x: number; classes: Classes }> = ({
-    x,
-    classes
-  }) => (
-    <g transform={`translate(${x},${H2 - R2 - 3})`}>
-      {math}
-      <foreignObject width="45" height="45" x={START / 2 - x / 2 - 20} y={-35}>
-        <div className={classes.text}>CAN CLEAR</div>
-      </foreignObject>
-      <foreignObject width="45" height="45" x={-x / 2 - 20} y={-35}>
-        <div className={classes.text}>CAN'T CLEAR</div>
-      </foreignObject>
-      {CE("line", {
-        markerEnd: "url(#arrow2)",
-        markerStart: "url(#arrow2)",
-        stroke: colors.deepOrange.A400,
-        strokeWidth: 2,
-        x2: 0,
-        x1: START - x
-      })}
-      {CE("line", {
-        markerEnd: "url(#arrow3)",
-        stroke: colors.grey["400"],
-        strokeWidth: 2,
-        strokeDasharray: "2,2",
-        x2: 0,
-        x1: -x
-      })}
-    </g>
-  );
-  return res;
-})();
-
-const Vis: FunctionComponent<{
-  mover: { x: number };
-  stopper: { x: number };
-  x0: number;
-  lightColor: "red" | "green" | "yellow";
-  xssd: number;
-  xcl: number;
-}> = ({ mover, stopper, x0, lightColor, xssd, xcl }) => {
+const Vis: FunctionComponent<{}> = () => {
+  let { state } = useContext(AppContext);
   const classes = useStyles(EMPTY);
   return (
     <svg width={WIDTH} height={HEIGHT} className={classes.svg}>
-      <defs>
-        <marker
-          id="arrow"
-          viewBox="0 0 15 15"
-          refY="5"
-          refX="8"
-          markerWidth="6"
-          markerHeight="6"
-          orient="auto-start-reverse"
-          fill={colors.blue["400"]}
-        >
-          <path d="M 0 0 L 10 5 L 0 10 z" />
-        </marker>
-        <marker
-          id="arrow2"
-          viewBox="0 0 15 15"
-          refY="5"
-          refX="8"
-          markerWidth="6"
-          markerHeight="6"
-          orient="auto-start-reverse"
-          fill={colors.deepOrange.A400}
-        >
-          <path d="M 0 0 L 10 5 L 0 10 z" />
-        </marker>
-        <marker
-          id="arrow3"
-          viewBox="0 0 15 15"
-          refY="5"
-          refX="8"
-          markerWidth="6"
-          markerHeight="6"
-          orient="auto-start-reverse"
-          fill={colors.grey["400"]}
-        >
-          <path d="M 0 0 L 10 5 L 0 10 z" />
-        </marker>
-      </defs>
-      <g>
-        {Road}
-        <S0Line x={scale(x0)} classes={classes} />
-        <XssdLine x={scale(xssd)} classes={classes} />
-        <XclLine x={scale(xcl)} classes={classes} />
-        <Light color={lightColors[lightColor]} classes={classes} />
-        <Car x={scale(mover.x)} y={-15} violation={mover.x < -1 && x0 > xcl} />
-        <Car x={scale(stopper.x)} y={15} violation={stopper.x < -1} />
-      </g>
+      <path className={classes.road} d={getPath(state)} />
+      <Car
+        x={scale(state.x)}
+        y={yScale(getY(state))}
+        className={classes.car}
+        r={getR(state)}
+      />
+      <Tangent state={state} className={classes.tangent} />
     </svg>
   );
 };

@@ -1,145 +1,96 @@
 import React, { Dispatch } from "react";
-import memoizeone from "memoize-one";
-import { params, widths } from "src/constants";
-import { moveCursor } from "readline";
+import { params } from "src/constants";
 
 export const initialState = {
   play: false,
-  v0: params.v0,
-  x0: widths.start * 0.75,
-  stopper: {
-    x: widths.start,
-    v: params.v0
-  },
-  mover: {
-    x: widths.start,
-    v: params.v0
-  },
+  x: 20,
+  v: 18,
+  v0: 18,
   time: 0,
-  useState: 2,
-  yellow: 2.5
+  g1: 0.3,
+  g2: -0.3,
+  l: params.total * 0.3
 };
-type State = typeof initialState;
+
+export type State = typeof initialState;
 type ActionTypes =
   | {
       type: "TICK";
-      payload: { dt: number; xssd: number };
+      payload: number;
     }
-  | { type: "SET_X0"; payload: number }
   | { type: "SET_V0"; payload: number }
-  | { type: "SET_YELLOW"; payload: number }
+  | { type: "SET_G1"; payload: number }
+  | { type: "SET_G2"; payload: number }
+  | { type: "SET_L"; payload: number }
+  | { type: "SET_X"; payload: number }
   | { type: "RESTART" }
   | { type: "RESET" }
-  | { type: "DRAG"; payload: { x0: number; v0: number } }
   | { type: "SET_PLAY"; payload: boolean };
-
-// for (let [type, prop] of [
-//   ["SET_X0", "x0"],
-//   ["SET_V0", "v0"],
-//   ["SET_YELLOW", "yellow"],
-//   ["SET_PLAY", "play"]
-// ])
-//   if (action.type === type) return { ...state, [prop]: action.payload };
-
-const stopperReducer = (
-  { x, v }: { v: number; x: number },
-  {
-    payload: { xssd, dt }
-  }: { type: "TICK"; payload: { dt: number; xssd: number } },
-  v0: number,
-  x0: number
-) => {
-  if (x < Math.min(xssd, x0) - v0 * params.tp)
-    return {
-      v: Math.max(v - params.a * dt, 0),
-      x: Math.min(x - v * dt + 0.5 * params.a * dt * dt, x)
-    };
-  return {
-    v,
-    x: x - v * dt
-  };
-};
 
 export const reducer = (state: State, action: ActionTypes): State => {
   switch (action.type) {
     case "TICK":
-      const { dt } = action.payload;
-      let { mover, stopper, v0, x0 } = state;
       return {
         ...state,
-        time: state.time + dt,
-        mover: {
-          v: mover.v,
-          x: mover.x - mover.v * dt
-        },
-        stopper: stopperReducer(stopper, action, v0, x0)
-      };
-    case "SET_X0":
-      return {
-        ...state,
-        x0: action.payload
+        x: state.x + action.payload * state.v,
+        time: state.time + action.payload
       };
     case "SET_PLAY":
       return {
         ...state,
         play: action.payload
       };
-    case "SET_YELLOW":
-      return {
-        ...state,
-        yellow: action.payload
-      };
     case "SET_V0":
       return {
         ...state,
         v0: action.payload
       };
+    case "SET_G1":
+      return {
+        ...state,
+        g1: action.payload
+      };
+    case "SET_G2":
+      return {
+        ...state,
+        g2: action.payload
+      };
+    case "SET_L":
+      return {
+        ...state,
+        l: action.payload
+      };
+    case "SET_X":
+      return {
+        ...state,
+        x: action.payload
+      };
     case "RESTART":
       return {
         ...state,
-        mover: {
-          v: state.v0,
-          x: widths.start
-        },
         time: 0,
-        stopper: {
-          v: state.v0,
-          x: widths.start
-        }
-      };
-    case "DRAG":
-      return {
-        ...state,
-        v0: action.payload.v0,
-        x0: action.payload.x0
+        x: 0,
+        v: state.v0
       };
     case "RESET":
       return {
         ...state,
-        play: false,
         time: 0,
-        mover: {
-          v: state.v0,
-          x: widths.start
-        },
-        stopper: {
-          v: state.v0,
-          x: widths.start
-        }
+        x: 0,
+        v: state.v0
       };
     default:
       return state;
   }
 };
 
+// export const
+
 export const AppContext = React.createContext<{
   state: State;
   dispatch?: Dispatch<ActionTypes>;
 }>({ state: initialState, dispatch: null });
 
-export const getxssd = memoizeone(
-  (v0: number) => v0 * params.tp + (v0 * v0) / 2 / params.a
-);
-export const getxcl = memoizeone(
-  (v0: number, yellow: number) => -widths.car.width + v0 * yellow
-);
+// export const getxssd = memoizeone(
+//   (v0: number) => v0 * params.tp + (v0 * v0) / 2 / params.a
+// );

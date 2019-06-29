@@ -34,7 +34,8 @@ module.exports = {
       },
       {
         test: /\.css$/,
-        // exclude: /node_modules/,
+        // include: /node_modules/,
+        // excl
         use: [
           "style-loader",
           "css-loader"
