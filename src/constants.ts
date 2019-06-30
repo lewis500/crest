@@ -1,11 +1,3 @@
-// export const widths = {
-//   car: {
-//     width: 3,
-//     height: 1.2
-//   },
-//   total: 95,
-// };
-
 export const params = {
   a: 3.4,
   v0: 18,
@@ -16,8 +8,10 @@ export const params = {
   car: {
     height: 1.5,
     width: 3
+  },
+  block: {
+    x: 55,
+    width: 1,
+    height: 1
   }
 };
-// params.
-
-// export default params;

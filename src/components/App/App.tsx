@@ -15,9 +15,6 @@ import Sliders from "src/components/Sliders";
 const useStyles = makeStyles({
   "@global": {
     body: {
-      // backgroundColor: colors.yellow['100'],
-      // backgroundColor: "#feffc45e",
-      // backgroundOp
       margin: "0 !important",
       padding: "0 !important",
       fontFamily: " 'Puritan', sans-serif"
@@ -54,10 +51,6 @@ const useStyles = makeStyles({
     boxSizing: "border-box"
   }
 });
-
-// type setter = React.Dispatch<React.SetStateAction<number>>;
-// const Sliders = (() => {
-// })();
 
 const EMPTY = {};
 const App: FunctionComponent<{}> = () => {
