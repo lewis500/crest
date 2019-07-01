@@ -8,6 +8,7 @@ export const initialState = {
   v: 18,
   v0: 18,
   time: 0,
+  connected: false,
   g1: 0.3,
   g2: -0.3,
   l: params.total * 0.3
@@ -31,10 +32,13 @@ type ActionTypes =
 export const reducer = (state: State, action: ActionTypes): State => {
   switch (action.type) {
     case "TICK":
+      let connected = getConnected(state);
+      let dt = action.payload;
       return {
         ...state,
-        x: state.x + action.payload * state.v,
-        time: state.time + action.payload
+        v: !connected ? state.v0 : state.v - dt * params.a,
+        x: state.x + dt * state.v + (connected ? -dt * dt * params.a * 0.5 : 0),
+        time: state.time + dt
       };
     case "SET_PLAY":
       return {
@@ -111,6 +115,30 @@ export const getY = mo((state: State, cx?: number) => {
   return (x - x0) * (x - x0) * getA(state) + state.g1 * x;
 });
 
+export const getXMax = mo(
+  (state: State) => getX0(state) - state.g1 / getA(state) / 2
+);
+
+export const getConnected = mo((state: State) => {
+  // if (state.x > getX0(state)) return true;
+  let xb = params.block.x;
+  let yb = getY(state, xb) + params.block.height;
+  let { mt, x, y, xt } = getTangent(state);
+  // console.log(xt);
+  return (xb - x) * mt + y < yb || xb < xt;
+});
+
+export const getBlockTangent = mo((state: State) => {
+  let x = params.block.x;
+  let y = getY(state, x) + params.block.height;
+  let a = getA(state);
+  let b = state.g1;
+  let x0 = getX0(state);
+  let xt = x + Math.sqrt((a * (x - x0) * (x - x0) + b * x - y) / a);
+  let yt = getY(state, xt);
+  let mt = (yt - y) / (xt - x);
+});
+
 export const getTangent = mo((state: State) => {
   let r = getRRadians(state);
   let x =
@@ -127,6 +155,7 @@ export const getTangent = mo((state: State) => {
   let xt = x + Math.sqrt((a * (x - x0) * (x - x0) + b * x - y) / a);
   let yt = getY(state, xt);
   let mt = (yt - y) / (xt - x);
+  // let
   return { x, y, xt, yt, mt };
 });
 

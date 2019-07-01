@@ -16,6 +16,10 @@ export default makeStyles({
     strokeWidth: "2px",
     fill: "none"
   },
+  connected: {
+    stroke: colors.pink["A200"],
+    strokeDasharray: "2, 2"
+  },
   text: {
     textAlign: "center",
     fontSize: "12px",
@@ -25,6 +29,6 @@ export default makeStyles({
     fill: colors.lightBlue["A400"]
   },
   block: {
-    fill: colors.green["300"]
+    fill: colors.green["A700"]
   }
 });

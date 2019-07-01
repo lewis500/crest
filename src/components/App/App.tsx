@@ -61,12 +61,10 @@ const App: FunctionComponent<{}> = () => {
 
   useTimer((dt: number) => {
     dt /= params.delta;
-    if (x < params.total) {
+    if (x < params.total && state.v > 0) {
       dispatch({ type: "TICK", payload: dt });
     } else {
-      // setTimeout(() => {
-        dispatch({ type: "RESTART" });
-      // }, 200);
+      dispatch({ type: "RESTART" });
     }
   }, play);
 

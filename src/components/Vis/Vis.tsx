@@ -6,19 +6,28 @@ import React, {
 import { params } from "src/constants";
 import { scaleLinear } from "d3-scale";
 import mo from "memoize-one";
-import { AppContext, State, getTangent, getRDegrees, getY } from "src/ducks";
+import {
+  AppContext,
+  State,
+  getTangent,
+  getRDegrees,
+  getY,
+  getConnected,
+  getXMax
+} from "src/ducks";
+import clsx from "clsx";
 import useStyles from "./styleVis";
 import {} from "src/ducks";
 
 const EMPTY = {};
 const WIDTH = 500,
-  HEIGHT = WIDTH / 4,
+  HEIGHT = WIDTH / 3,
   scale = scaleLinear()
     .range([0, WIDTH])
     .domain([0, params.total]),
   yScale = scaleLinear()
     .range([HEIGHT, 0])
-    .domain([0, params.total / 4]);
+    .domain([0, (params.total * HEIGHT) / WIDTH]);
 
 const CAR_WIDTH = scale(params.car.width),
   CAR_HEIGHT = HEIGHT - yScale(params.car.height),
@@ -41,7 +50,7 @@ export const Car: FunctionComponent<{
   y: number;
   r: number;
   className: string;
-}> = ({ x, y, r, className }) => 
+}> = ({ x, y, r, className }) =>
   CE("rect", {
     width: CAR_WIDTH,
     height: CAR_HEIGHT,
@@ -56,7 +65,7 @@ const Block: FunctionComponent<{
   y: number;
   r: number;
   className: string;
-}> = ({ x, y, r, className }) => 
+}> = ({ x, y, r, className }) =>
   CE("rect", {
     width: BLOCK_WIDTH,
     height: BLOCK_HEIGHT,
@@ -66,15 +75,16 @@ const Block: FunctionComponent<{
     transform: `translate(${x},${y}) rotate(${r}) `
   });
 
-
 const getTangentPath = mo((state: State) => {
   let { x, y, xt, yt, mt } = getTangent(state);
-  return `M${scale(x)},${yScale(y)}L${scale(2 * xt)},${yScale(yt + mt * xt)}`;
+  return `M${scale(x)},${yScale(y)}L${scale(3 * xt)},${yScale(
+    yt + 2 * mt * xt
+  )}`;
 });
 
 const Vis: FunctionComponent<{}> = () => {
-  let { state } = useContext(AppContext);
-  const classes = useStyles(EMPTY);
+  const { state } = useContext(AppContext),
+    classes = useStyles(EMPTY);
   return (
     <svg width={WIDTH} height={HEIGHT} className={classes.svg}>
       <path className={classes.road} d={getRoadPath(state)} />
@@ -90,7 +100,15 @@ const Vis: FunctionComponent<{}> = () => {
         className={classes.block}
         r={-getRDegrees(state, params.block.x)}
       />
-      <path d={getTangentPath(state)} className={classes.tangent} />
+      {/* {state.x < getXMax(state) && ( */}
+      <path
+        d={getTangentPath(state)}
+        className={clsx(
+          classes.tangent,
+          getConnected(state) && classes.connected
+        )}
+      />
+      {/* )} */}
     </svg>
   );
 };
