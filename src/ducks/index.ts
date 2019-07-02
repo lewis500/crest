@@ -119,25 +119,34 @@ export const getXMax = mo(
   (state: State) => getX0(state) - state.g1 / getA(state) / 2
 );
 
+export const getXs = mo((state: State) => {
+  const x0 = getX0(state),
+    { g1 } = state,
+    a = getA(state),
+    { mt: m, xt, yt } = getTangent(state),
+    y0 = yt - m * xt,
+    h2 = params.block.height;
+  return (2*a*x0 - g1 + m - Math.sqrt(-4*a*g1*x0 - 4*a*h2 + 4*a*m*x0 + 4*a*y0 + g1*g1 - 2*g1*m + m*m))/(2*a)
+
+});
+
 export const getConnected = mo((state: State) => {
-  // if (state.x > getX0(state)) return true;
   let xb = params.block.x;
   let yb = getY(state, xb) + params.block.height;
   let { mt, x, y, xt } = getTangent(state);
-  // console.log(xt);
   return (xb - x) * mt + y < yb || xb < xt;
 });
 
-export const getBlockTangent = mo((state: State) => {
-  let x = params.block.x;
-  let y = getY(state, x) + params.block.height;
-  let a = getA(state);
-  let b = state.g1;
-  let x0 = getX0(state);
-  let xt = x + Math.sqrt((a * (x - x0) * (x - x0) + b * x - y) / a);
-  let yt = getY(state, xt);
-  let mt = (yt - y) / (xt - x);
-});
+// export const getBlockTangent = mo((state: State) => {
+//   let x = params.block.x;
+//   let y = getY(state, x) + params.block.height;
+//   let a = getA(state);
+//   let b = state.g1;
+//   let x0 = getX0(state);
+//   let xt = x + Math.sqrt((a * (x - x0) * (x - x0) + b * x - y) / a);
+//   let yt = getY(state, xt);
+//   let mt = (yt - y) / (xt - x);
+// });
 
 export const getTangent = mo((state: State) => {
   let r = getRRadians(state);

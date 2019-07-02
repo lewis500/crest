@@ -13,7 +13,9 @@ import {
   getRDegrees,
   getY,
   getConnected,
-  getXMax
+  getXMax,
+  getXs,
+  getX0
 } from "src/ducks";
 import clsx from "clsx";
 import useStyles from "./styleVis";
@@ -85,6 +87,7 @@ const getTangentPath = mo((state: State) => {
 const Vis: FunctionComponent<{}> = () => {
   const { state } = useContext(AppContext),
     classes = useStyles(EMPTY);
+  // console.log(getXs(state));
   return (
     <svg width={WIDTH} height={HEIGHT} className={classes.svg}>
       <path className={classes.road} d={getRoadPath(state)} />
@@ -101,6 +104,7 @@ const Vis: FunctionComponent<{}> = () => {
         r={-getRDegrees(state, params.block.x)}
       />
       {/* {state.x < getXMax(state) && ( */}
+      <line x1={scale(getXs(state))} x2={scale(getXs(state)) } y1={0} y2={HEIGHT} stroke="black"/>
       <path
         d={getTangentPath(state)}
         className={clsx(

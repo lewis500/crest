@@ -1,5 +1,5 @@
 const total = 120,
-blockX = total*.8;
+blockX = total*.7;
 
 export const params = {
   a: 3.4,

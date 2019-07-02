@@ -50,7 +50,7 @@ const Sliders: FunctionComponent = () => {
       <StyleSlider
         onChange={(e, payload: number) => dispatch({ type: "SET_X", payload })}
         value={x}
-        step={1}
+        step={.25}
         min={0}
         max={params.total}
       />

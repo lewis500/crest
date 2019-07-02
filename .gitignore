@@ -1,7 +1,7 @@
 node_modules/
 .DS_store
 *.log
-# *.lock
+*.lock
 flow-typed/
 # public/
 TODO.md
