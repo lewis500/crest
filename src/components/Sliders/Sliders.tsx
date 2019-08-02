@@ -16,32 +16,32 @@ const StyleSlider = withStyles((theme: Theme) => ({
 }))(Slider);
 
 const v0Text = (
-  <Text variant="body1">
-    <TeX math="v_0" /> (initial speed)
-  </Text>
-);
-const g1Text = (
-  <Text variant="body1">
-    <TeX math="g_1" /> (initial grade)
-  </Text>
-);
-const g2Text = (
-  <Text variant="body1">
-    <TeX math="g_2" /> (final grade)
-  </Text>
-);
-const lText = (
-  <Text variant="body1">
-    <TeX math="l" /> (curve length)
-  </Text>
-);
-const xText = (
-  <Text variant="body1">
-    <TeX math="x" /> (car position)
-  </Text>
-);
+    <Text variant="body1">
+      <TeX math="v_0" /> (initial speed)
+    </Text>
+  ),
+  g1Text = (
+    <Text variant="body1">
+      <TeX math="g_1" /> (initial grade)
+    </Text>
+  ),
+  g2Text = (
+    <Text variant="body1">
+      <TeX math="g_2" /> (final grade)
+    </Text>
+  ),
+  lText = (
+    <Text variant="body1">
+      <TeX math="l" /> (curve length)
+    </Text>
+  ),
+  xText = (
+    <Text variant="body1">
+      <TeX math="x" /> (car position)
+    </Text>
+  );
 
-const Sliders: FunctionComponent = () => {
+export default () => {
   const { state, dispatch } = useContext(AppContext);
   const { l, v0, g1, g2, x } = state;
   return (
@@ -50,7 +50,7 @@ const Sliders: FunctionComponent = () => {
       <StyleSlider
         onChange={(e, payload: number) => dispatch({ type: "SET_X", payload })}
         value={x}
-        step={.25}
+        step={0.25}
         min={0}
         max={params.total}
       />
@@ -91,5 +91,3 @@ const Sliders: FunctionComponent = () => {
     </>
   );
 };
-
-export default Sliders;
