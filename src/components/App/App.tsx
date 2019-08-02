@@ -1,15 +1,12 @@
 import React, { FunctionComponent, useContext, useReducer } from "react";
 import Button from "@material-ui/core/Button";
 import { colors } from "@material-ui/core";
-// import { withStyles, Theme } from "@material-ui/core/styles";
 import Paper from "@material-ui/core/Paper";
 import useTimer from "src/useTimerHook";
 import Vis from "src/components/Vis";
-// import Plot from "src/components/Plot";
 import { params } from "src/constants";
 import { makeStyles } from "@material-ui/styles";
 import { AppContext, reducer, initialState } from "src/ducks";
-// import TeX from "@matejmazur/react-katex";
 import Sliders from "src/components/Sliders";
 
 const useStyles = makeStyles({
