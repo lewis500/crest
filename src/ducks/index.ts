@@ -1,6 +1,9 @@
 import React, { Dispatch } from "react";
 import { params } from "src/constants";
 import mo from "memoize-one";
+import { createSelector as CS } from "reselect";
+import get from "lodash/fp/get";
+import { scaleLinear } from "d3-scale";
 
 export const initialState = {
   play: false,
@@ -13,6 +16,7 @@ export const initialState = {
   g2: -0.3,
   l: params.total * 0.3
 };
+type Mapper = (v: number) => number;
 
 export type State = typeof initialState;
 type ActionTypes =
@@ -32,7 +36,8 @@ type ActionTypes =
 export const reducer = (state: State, action: ActionTypes): State => {
   switch (action.type) {
     case "TICK":
-      let connected = getConnected(state);
+      // let connected = getConnected(state);
+      let connected = true;
       let dt = action.payload;
       return {
         ...state,
@@ -89,53 +94,139 @@ export const reducer = (state: State, action: ActionTypes): State => {
   }
 };
 
-export const getA = mo((state: State) => (state.g2 - state.g1) / 2 / state.l);
-export const getX0 = mo(
-  (state: State) =>
-    (-params.total * state.g2) / (state.g1 - state.g2) - state.l / 2
-);
-export const getR = mo((state: State, x?: number) => {
-  let x0 = getX0(state);
-  x = typeof x === "undefined" ? state.x : x;
-  if (x < x0) return state.g1;
-  if (x > x0 + state.l) return state.g2;
-  return 2 * (x - x0) * getA(state) + state.g1;
-});
+const getA = CS<State, number, number, number, number>(
+    [get("g1"), get("g2"), get("l")],
+    (g1, g2, l) => (g2 - g1) / 2 / l
+  ),
+  getX0 = CS<State, number, number, number, number>(
+    [get("g1"), get("g2"), get("l")],
+    (g1, g2, l) => (-params.total * g2) / (g1 - g2) - l / 2
+  ),
+  getY0 = CS<State, number, number, number>(
+    [get("g1"), getX0],
+    (g1, x0) => g1 * x0
+  ),
+  getGetY = CS<State, number, number, number, number, number, Mapper>(
+    [get("g1"), get("g2"), get("l"), getA, getY0],
+    (g1, g2, l, a, y0) => (x: number) => {
+      if (x < 0) return x * g1;
+      if (x > l) return x * g2;
+      return x * x * a + g1 * x + y0;
+    }
+  ),
+  getXMax = CS<State, number, number, number, number>(
+    [getX0, get("g1"), getA],
+    (x0, g1, a) => x0 - g1 / a / 2
+  ),
+  getGetRRadians = CS<State, number, number, number, number, Mapper>(
+    [get("g1"), get("g2"), get("l"), getA],
+    (g1, g2, l, a) => {
+      const f = (x: number) => {
+        if (x < 0) return g1;
+        if (x > l) return g2;
+        return 2 * x * a + g1;
+      };
+      return x => Math.atan(f(x));
+    }
+  ),
+  getGetRDegrees = CS<State, Mapper, Mapper>(
+    getGetRRadians,
+    getRRadians => (x: number) => (getRRadians(x) * 180) / Math.PI
+  ),
+  getXScale = mo((width: number, x0: number) =>
+    scaleLinear()
+      .range([0, width])
+      .domain([-x0, params.total - x0])
+  ),
+  getYScale = mo((height: number, width: number, y0: number) => {
+    return scaleLinear()
+      .range([height, 0])
+      .domain([0, (params.total * height) / width]);
+  }),
+  getRoadPath = (() => {
+    const range: number[] = Array.apply(null, { length: 50 }).map(
+      (d: any, i: number, k: any[]) => (i / k.length) * params.total
+    );
+    return mo(
+      (xScale: Mapper, yScale: Mapper, getY: Mapper) =>
+        "M" + range.map(x => [xScale(x), yScale(getY(x))]).join("L") + "Z"
+    );
+  })();
+export {
+  getXMax,
+  getGetRDegrees,
+  getGetY,
+  getXScale,
+  getYScale,
+  getX0,
+  getRoadPath,
+  getY0
+};
 
-export const getRDegrees = mo(
-  (state: State, x?: number) => (Math.atan(getR(state, x)) * 180) / Math.PI
-);
-export const getRRadians = mo((state: State) => Math.atan(getR(state)));
+// getGetRRadians = (s: State) => {
+//   let f = getGetRGrade(s);
+//   return (x: number) => Math.atan(f(x));
+// };
+// getGetRDegrees = CS<State,number,number,number>(
+//   [getGetRGrade, ]
+// )
 
-export const getY = mo((state: State, cx?: number) => {
-  let x0 = getX0(state),
-    x = typeof cx === "undefined" ? state.x : cx;
-  if (x < x0) return x * state.g1;
-  if (x > x0 + state.l) return state.g2 * (x - params.total);
-  return (x - x0) * (x - x0) * getA(state) + state.g1 * x;
-});
+// export const getR = mo((state: State, x?: number) => {
+//   let x0 = getX0(state);
+//   x = typeof x === "undefined" ? state.x : x;
+//   if (x < x0) return state.g1;
+//   if (x > x0 + state.l) return state.g2;
+//   return 2 * (x - x0) * getA(state) + state.g1;
+// });
 
-export const getXMax = mo(
-  (state: State) => getX0(state) - state.g1 / getA(state) / 2
-);
+// Math.
+// export const getRDegrees = mo(
+//   (state: State, x?: number) => (Math.atan(getR(state, x)) * 180) / Math.PI
+// );
+// export const getRRadians = mo((state: State) => Math.atan(getR(state)));
 
-export const getXs = mo((state: State) => {
-  const x0 = getX0(state),
-    { g1 } = state,
-    a = getA(state),
-    { mt: m, xt, yt } = getTangent(state),
-    y0 = yt - m * xt,
-    h2 = params.block.height;
-  return (2*a*x0 - g1 + m - Math.sqrt(-4*a*g1*x0 - 4*a*h2 + 4*a*m*x0 + 4*a*y0 + g1*g1 - 2*g1*m + m*m))/(2*a)
+// export const getY = mo((state: State, cx?: number) => {
+//   let x0 = getX0(state),
+//     x = typeof cx === "undefined" ? state.x : cx;
+//   if (x < x0) return x * state.g1;
+//   if (x > x0 + state.l) return state.g2 * (x - params.total);
+//   return (x - x0) * (x - x0) * getA(state) + state.g1 * x;
+// });
 
-});
+// export const getXMax = mo(
+//   (state: State) => getX0(state) - state.g1 / getA(state) / 2
+// );
 
-export const getConnected = mo((state: State) => {
-  let xb = params.block.x;
-  let yb = getY(state, xb) + params.block.height;
-  let { mt, x, y, xt } = getTangent(state);
-  return (xb - x) * mt + y < yb || xb < xt;
-});
+// export const getXs = mo((state: State) => {
+//   const x0 = getX0(state),
+//     { g1 } = state,
+//     a = getA(state),
+//     { mt: m, xt, yt } = getTangent(state),
+//     y0 = yt - m * xt,
+//     h2 = params.block.height;
+//   return (
+//     (2 * a * x0 -
+//       g1 +
+//       m -
+//       Math.sqrt(
+//         -4 * a * g1 * x0 -
+//           4 * a * h2 +
+//           4 * a * m * x0 +
+//           4 * a * y0 +
+//           g1 * g1 -
+//           2 * g1 * m +
+//           m * m
+//       )) /
+//     (2 * a)
+//   );
+// });
+
+// export const getConnected = mo((state: State) => {
+//   let xb = params.block.x;
+//   let yb = getY(state, xb) + params.block.height;
+//   let { mt, x, y, xt } = getTangent(state);
+//   return (xb - x) * mt + y < yb || xb < xt;
+// });
 
 // export const getBlockTangent = mo((state: State) => {
 //   let x = params.block.x;
@@ -148,25 +239,25 @@ export const getConnected = mo((state: State) => {
 //   let mt = (yt - y) / (xt - x);
 // });
 
-export const getTangent = mo((state: State) => {
-  let r = getRRadians(state);
-  let x =
-    state.x +
-    (Math.cos(r) * params.car.width) / 2 -
-    params.car.height * Math.sin(r);
-  let y =
-    getY(state) +
-    (Math.sin(r) * params.car.width) / 2 +
-    params.car.height * Math.cos(r);
-  let a = getA(state);
-  let b = state.g1;
-  let x0 = getX0(state);
-  let xt = x + Math.sqrt((a * (x - x0) * (x - x0) + b * x - y) / a);
-  let yt = getY(state, xt);
-  let mt = (yt - y) / (xt - x);
-  // let
-  return { x, y, xt, yt, mt };
-});
+// export const getTangent = mo((state: State) => {
+//   let r = getRRadians(state);
+//   let x =
+//     state.x +
+//     (Math.cos(r) * params.car.width) / 2 -
+//     params.car.height * Math.sin(r);
+//   let y =
+//     getY(state) +
+//     (Math.sin(r) * params.car.width) / 2 +
+//     params.car.height * Math.cos(r);
+//   let a = getA(state);
+//   let b = state.g1;
+//   let x0 = getX0(state);
+//   let xt = x + Math.sqrt((a * (x - x0) * (x - x0) + b * x - y) / a);
+//   let yt = getY(state, xt);
+//   let mt = (yt - y) / (xt - x);
+//   // let
+//   return { x, y, xt, yt, mt };
+// });
 
 export const AppContext = React.createContext<{
   state: State;

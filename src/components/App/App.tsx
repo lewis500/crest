@@ -40,7 +40,9 @@ const useStyles = makeStyles({
     alignSelf: "center"
   },
   visContainer: {
-    margin: "0 auto"
+    margin: "0 auto",
+    width: "800px",
+    height: "400px"
   },
   sliderContainer: {
     width: "300px",

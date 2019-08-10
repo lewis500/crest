@@ -6,10 +6,17 @@ export default makeStyles({
   svg: {
     display: "inline-block",
     margin: "30px 0",
+    width: '100%',
+    height: '100%',
     "& text": {
       fontFamily: "Puritan, san-serif",
       fontSize: "13px"
     }
+  },
+  container: {
+    position: "relative",
+    width: "100%",
+    height: "100%"
   },
   tangent: {
     stroke: colors.pink["A700"],

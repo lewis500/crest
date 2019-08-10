@@ -1,119 +1,135 @@
 import React, {
   createElement as CE,
   FunctionComponent,
-  useContext
+  useContext,
+  useRef,
+  useMemo
 } from "react";
 import { params } from "src/constants";
-import { scaleLinear } from "d3-scale";
 import mo from "memoize-one";
 import {
   AppContext,
   State,
-  getTangent,
-  getRDegrees,
-  getY,
-  getConnected,
-  getXMax,
-  getXs,
-  getX0
+  getRoadPath,
+  // getTangent,
+  getGetY,
+  getX0,
+  getGetRDegrees,
+  getXScale,
+  getYScale,
+  getY0,
+  // getConnected,
+  getXMax
+  // getXs,
+  // getX0
 } from "src/ducks";
 import clsx from "clsx";
 import useStyles from "./styleVis";
-import {} from "src/ducks";
+import { createSelector as CS } from "reselect";
+import useElementSize from "src/useElementSizeHook";
 
-const EMPTY = {};
-const WIDTH = 500,
-  HEIGHT = WIDTH / 3,
-  scale = scaleLinear()
-    .range([0, WIDTH])
-    .domain([0, params.total]),
-  yScale = scaleLinear()
-    .range([HEIGHT, 0])
-    .domain([0, (params.total * HEIGHT) / WIDTH]);
-
-const CAR_WIDTH = scale(params.car.width),
-  CAR_HEIGHT = HEIGHT - yScale(params.car.height),
-  BLOCK_WIDTH = scale(params.block.width),
-  BLOCK_HEIGHT = HEIGHT - yScale(params.block.height);
-
-const getRoadPath = (() => {
-  const range: number[] = Array.apply(null, { length: 50 }).map(
-    (d: any, i: number, k: any[]) => (i / k.length) * params.total
-  );
-
-  return mo(
-    (state: State) =>
-      "M" + range.map(x => [scale(x), yScale(getY(state, x))]).join("L") + "Z"
-  );
-})();
-
-export const Car: FunctionComponent<{
-  x: number;
-  y: number;
-  r: number;
-  className: string;
-}> = ({ x, y, r, className }) =>
-  CE("rect", {
-    width: CAR_WIDTH,
-    height: CAR_HEIGHT,
-    className,
-    y: -CAR_HEIGHT,
-    x: -CAR_WIDTH * 0.5,
-    transform: `translate(${x},${y}) rotate(${r}) `
+const EMPTY = {},
+  M = {
+    top: 20,
+    bottom: 20,
+    left: 20,
+    right: 10
+  },
+  gTranslate = `translate(${M.left},${M.top})`,
+  marginer = ({ width, height }: { width: number; height: number }) => ({
+    width: Math.max(width - M.left - M.right, 0),
+    height: Math.max(height - M.top - M.bottom, 0)
   });
 
-const Block: FunctionComponent<{
-  x: number;
-  y: number;
-  r: number;
-  className: string;
-}> = ({ x, y, r, className }) =>
-  CE("rect", {
-    width: BLOCK_WIDTH,
-    height: BLOCK_HEIGHT,
-    className,
-    y: -BLOCK_HEIGHT,
-    x: -BLOCK_WIDTH * 0.5,
-    transform: `translate(${x},${y}) rotate(${r}) `
-  });
+// export const Car: FunctionComponent<{
+//   x: number;
+//   y: number;
+//   r: number;
+//   className: string;
+// }> = ({ x, y, r, className }) =>
+//   CE("rect", {
+//     width: CAR_WIDTH,
+//     height: CAR_HEIGHT,
+//     className,
+//     y: -CAR_HEIGHT,
+//     x: -CAR_WIDTH * 0.5,
+//     transform: `translate(${x},${y}) rotate(${r}) `
+//   });
 
-const getTangentPath = mo((state: State) => {
-  let { x, y, xt, yt, mt } = getTangent(state);
-  return `M${scale(x)},${yScale(y)}L${scale(3 * xt)},${yScale(
-    yt + 2 * mt * xt
-  )}`;
-});
+// const Block: FunctionComponent<{
+//   x: number;
+//   y: number;
+//   r: number;
+//   className: string;
+// }> = ({ x, y, r, className }) =>
+//   CE("rect", {
+//     width: BLOCK_WIDTH,
+//     height: BLOCK_HEIGHT,
+//     className,
+//     y: -BLOCK_HEIGHT,
+//     x: -BLOCK_WIDTH * 0.5,
+//     transform: `translate(${x},${y}) rotate(${r}) `
+//   });
 
-const Vis: FunctionComponent<{}> = () => {
+// const getTangentPath = mo((state: State) => {
+//   let { x, y, xt, yt, mt } = getTangent(state);
+//   return `M${scale(x)},${yScale(y)}L${scale(3 * xt)},${yScale(
+//     yt + 2 * mt * xt
+//   )}`;
+// });
+
+export default () => {
   const { state } = useContext(AppContext),
-    classes = useStyles(EMPTY);
-  // console.log(getXs(state));
+    classes = useStyles(EMPTY),
+    containerRef = useRef<HTMLDivElement>(),
+    { width, height } = marginer(useElementSize(containerRef)),
+    xScale = getXScale(width, getX0(state)),
+    yScale = getYScale(height, width, getY0(state)),
+    [carWidth, carHeight] = [8, 4];
+    console.log(getX0(state))
+  // [carWidth, carHeight] = useMemo(() => {
+  //   return [xScale(params.car.width), xScale(params.car.height)];
+  // }, [xScale]);
+  const getY = getGetY(state);
+
   return (
-    <svg width={WIDTH} height={HEIGHT} className={classes.svg}>
-      <path className={classes.road} d={getRoadPath(state)} />
-      <Car
-        x={scale(state.x)}
-        y={yScale(getY(state))}
-        className={classes.car}
-        r={-getRDegrees(state)}
-      />
-      <Block
-        x={scale(params.block.x)}
-        y={yScale(getY(state, params.block.x))}
-        className={classes.block}
-        r={-getRDegrees(state, params.block.x)}
-      />
-      {/* {state.x < getXMax(state) && ( */}
-      <line x1={scale(getXs(state))} x2={scale(getXs(state)) } y1={0} y2={HEIGHT} stroke="black"/>
+    <div ref={containerRef} className={classes.container}>
+      <svg className={classes.svg}>
+        {/* <path className={classes.road} d={getRoadPath(xScale, yScale, getY)} /> */}
+
+        {CE("rect", {
+          width: carWidth,
+          height: carHeight,
+          className: classes.car,
+          y: -carHeight,
+          x: -carWidth * 0.5,
+          transform: `translate(${xScale(state.x)},${yScale(
+            getY(state.x)
+          )}) rotate(${getGetRDegrees(state)(state.x)}) `
+        })}
+        {/* <Car
+          x={xScale(state.x)}
+          y={yScale(getY(state.x))}
+          className={classes.car}
+          r={-getGetRDegrees(state)(state.x)}
+        /> */}
+        {/* <Block
+          x={xScale(params.block.x)}
+          y={yScale(getGetY(state)(params.block.x))}
+          className={classes.block}
+          r={-getGetRDegrees(state)(params.block.x)}
+        /> */}
+        {/* {state.x < getXMax(state) && ( */}
+        {/* <line x1={scale(getXs(state))} x2={scale(getXs(state)) } y1={0} y2={HEIGHT} stroke="black"/>
       <path
         d={getTangentPath(state)}
         className={clsx(
           classes.tangent,
           getConnected(state) && classes.connected
         )}
-      />
-      {/* )} */}
-    </svg>
+      /> */}
+        {/* )} */}
+      </svg>
+    </div>
   );
 };
-export default Vis;
