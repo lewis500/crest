@@ -83,8 +83,8 @@ export default () => {
     classes = useStyles(EMPTY),
     containerRef = useRef<HTMLDivElement>(),
     { width, height } = marginer(useElementSize(containerRef)),
-    xScale = getXScale(width, getX0(state)),
-    yScale = getYScale(height, width, getY0(state)),
+    xScale = getXScale(width),
+    yScale = getYScale(height, width),
     [carWidth, carHeight] = [8, 4];
     console.log(getX0(state))
   // [carWidth, carHeight] = useMemo(() => {
@@ -95,7 +95,7 @@ export default () => {
   return (
     <div ref={containerRef} className={classes.container}>
       <svg className={classes.svg}>
-        {/* <path className={classes.road} d={getRoadPath(xScale, yScale, getY)} /> */}
+        <path className={classes.road} d={getRoadPath(xScale, yScale, getY)} />
 
         {CE("rect", {
           width: carWidth,

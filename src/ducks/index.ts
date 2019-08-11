@@ -5,6 +5,8 @@ import { createSelector as CS } from "reselect";
 import get from "lodash/fp/get";
 import { scaleLinear } from "d3-scale";
 
+type NN = number;
+
 export const initialState = {
   play: false,
   x: 20,
@@ -16,19 +18,19 @@ export const initialState = {
   g2: -0.3,
   l: params.total * 0.3
 };
-type Mapper = (v: number) => number;
+type Mapper = (v: NN) => NN;
 
 export type State = typeof initialState;
 type ActionTypes =
   | {
       type: "TICK";
-      payload: number;
+      payload: NN;
     }
-  | { type: "SET_V0"; payload: number }
-  | { type: "SET_G1"; payload: number }
-  | { type: "SET_G2"; payload: number }
-  | { type: "SET_L"; payload: number }
-  | { type: "SET_X"; payload: number }
+  | { type: "SET_V0"; payload: NN }
+  | { type: "SET_G1"; payload: NN }
+  | { type: "SET_G2"; payload: NN }
+  | { type: "SET_L"; payload: NN }
+  | { type: "SET_X"; payload: NN }
   | { type: "RESTART" }
   | { type: "RESET" }
   | { type: "SET_PLAY"; payload: boolean };
@@ -94,34 +96,33 @@ export const reducer = (state: State, action: ActionTypes): State => {
   }
 };
 
-const getA = CS<State, number, number, number, number>(
+const getA = CS<State, NN, NN, NN, NN>(
     [get("g1"), get("g2"), get("l")],
     (g1, g2, l) => (g2 - g1) / 2 / l
   ),
-  getX0 = CS<State, number, number, number, number>(
+  getX0 = CS<State, NN, NN, NN, NN>(
     [get("g1"), get("g2"), get("l")],
     (g1, g2, l) => (-params.total * g2) / (g1 - g2) - l / 2
   ),
-  getY0 = CS<State, number, number, number>(
-    [get("g1"), getX0],
-    (g1, x0) => g1 * x0
-  ),
-  getGetY = CS<State, number, number, number, number, number, Mapper>(
-    [get("g1"), get("g2"), get("l"), getA, getY0],
-    (g1, g2, l, a, y0) => (x: number) => {
-      if (x < 0) return x * g1;
-      if (x > l) return x * g2;
+  getY0 = CS<State, NN, NN, NN>([get("g1"), getX0], (g1, x0) => g1 * x0),
+  getGetY = CS<State, NN, NN, NN, NN, NN, NN, Mapper>(
+    [get("g1"), get("g2"), get("l"), getA, getY0, getX0],
+    (g1, g2, l, a, y0, x0) => (x: NN) => {
+      x = x - x0;
+      if (x < 0) return x * g1 + y0;
+      if (x >= l) return (x - l) * g2;
       return x * x * a + g1 * x + y0;
     }
   ),
-  getXMax = CS<State, number, number, number, number>(
+  getXMax = CS<State, NN, NN, NN, NN>(
     [getX0, get("g1"), getA],
     (x0, g1, a) => x0 - g1 / a / 2
   ),
-  getGetRRadians = CS<State, number, number, number, number, Mapper>(
-    [get("g1"), get("g2"), get("l"), getA],
-    (g1, g2, l, a) => {
-      const f = (x: number) => {
+  getGetRRadians = CS<State, NN, NN, NN, NN, NN, Mapper>(
+    [get("g1"), get("g2"), get("l"), getA, getX0],
+    (g1, g2, l, a, x0) => {
+      const f = (x: NN) => {
+        x = x - x0;
         if (x < 0) return g1;
         if (x > l) return g2;
         return 2 * x * a + g1;
@@ -131,21 +132,21 @@ const getA = CS<State, number, number, number, number>(
   ),
   getGetRDegrees = CS<State, Mapper, Mapper>(
     getGetRRadians,
-    getRRadians => (x: number) => (getRRadians(x) * 180) / Math.PI
+    getRRadians => (x: NN) => -(getRRadians(x) * 180) / Math.PI
   ),
-  getXScale = mo((width: number, x0: number) =>
+  getXScale = mo((width: NN) =>
     scaleLinear()
       .range([0, width])
-      .domain([-x0, params.total - x0])
+      .domain([0, params.total])
   ),
-  getYScale = mo((height: number, width: number, y0: number) => {
+  getYScale = mo((height: NN, width: NN) => {
     return scaleLinear()
       .range([height, 0])
       .domain([0, (params.total * height) / width]);
   }),
   getRoadPath = (() => {
-    const range: number[] = Array.apply(null, { length: 50 }).map(
-      (d: any, i: number, k: any[]) => (i / k.length) * params.total
+    const range: NN[] = Array.apply(null, { length: 50 }).map(
+      (d: any, i: NN, k: any[]) => (i / k.length) * params.total
     );
     return mo(
       (xScale: Mapper, yScale: Mapper, getY: Mapper) =>
@@ -165,13 +166,13 @@ export {
 
 // getGetRRadians = (s: State) => {
 //   let f = getGetRGrade(s);
-//   return (x: number) => Math.atan(f(x));
+//   return (x: NN) => Math.atan(f(x));
 // };
-// getGetRDegrees = CS<State,number,number,number>(
+// getGetRDegrees = CS<State,NN,NN,NN>(
 //   [getGetRGrade, ]
 // )
 
-// export const getR = mo((state: State, x?: number) => {
+// export const getR = mo((state: State, x?: NN) => {
 //   let x0 = getX0(state);
 //   x = typeof x === "undefined" ? state.x : x;
 //   if (x < x0) return state.g1;
@@ -181,11 +182,11 @@ export {
 
 // Math.
 // export const getRDegrees = mo(
-//   (state: State, x?: number) => (Math.atan(getR(state, x)) * 180) / Math.PI
+//   (state: State, x?: NN) => (Math.atan(getR(state, x)) * 180) / Math.PI
 // );
 // export const getRRadians = mo((state: State) => Math.atan(getR(state)));
 
-// export const getY = mo((state: State, cx?: number) => {
+// export const getY = mo((state: State, cx?: NN) => {
 //   let x0 = getX0(state),
 //     x = typeof cx === "undefined" ? state.x : cx;
 //   if (x < x0) return x * state.g1;
@@ -265,5 +266,5 @@ export const AppContext = React.createContext<{
 }>({ state: initialState, dispatch: null });
 
 // export const getxssd = mo(
-//   (v0: number) => v0 * params.tp + (v0 * v0) / 2 / params.a
+//   (v0: NN) => v0 * params.tp + (v0 * v0) / 2 / params.a
 // );
