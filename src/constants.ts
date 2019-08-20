@@ -9,8 +9,8 @@ export const params = {
   tp: 0.75,
   total,
   car: {
-    height: 1.5,
-    width: 3
+    height: 1,
+    width: 2
   },
   block: {
     x: blockX,

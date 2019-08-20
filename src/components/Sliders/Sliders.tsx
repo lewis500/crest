@@ -1,9 +1,9 @@
-import React, { useContext, FunctionComponent } from "react";
+import React, { useContext } from "react";
 import { withStyles, Theme } from "@material-ui/core/styles";
 import { AppContext } from "src/ducks";
-import Slider from "@material-ui/lab/Slider";
+import Slider from "@material-ui/core/Slider";
 import { Typography as Text, colors } from "@material-ui/core";
-import { makeStyles } from "@material-ui/styles";
+import makeStyles from "@material-ui/styles/makeStyles";
 import TeX from "@matejmazur/react-katex";
 import { params } from "src/constants";
 import "katex/dist/katex.min.css";

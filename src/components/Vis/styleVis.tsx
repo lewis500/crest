@@ -33,7 +33,7 @@ export default makeStyles({
     fontFamily: "Puritan, sans-serif"
   },
   car: {
-    fill: colors.lightBlue["A400"]
+    fill: colors.purple["A400"]
   },
   block: {
     fill: colors.green["A700"]

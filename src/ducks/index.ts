@@ -39,7 +39,7 @@ export const reducer = (state: State, action: ActionTypes): State => {
   switch (action.type) {
     case "TICK":
       // let connected = getConnected(state);
-      let connected = true;
+      let connected = false;
       let dt = action.payload;
       return {
         ...state,
@@ -110,7 +110,7 @@ const getA = CS<State, NN, NN, NN, NN>(
     (g1, g2, l, a, y0, x0) => (x: NN) => {
       x = x - x0;
       if (x < 0) return x * g1 + y0;
-      if (x >= l) return (x - l) * g2;
+      if (x > l) return -(params.total - x - x0) * g2;
       return x * x * a + g1 * x + y0;
     }
   ),
@@ -140,18 +140,18 @@ const getA = CS<State, NN, NN, NN, NN>(
       .domain([0, params.total])
   ),
   getYScale = mo((height: NN, width: NN) => {
+    // if(width)
     return scaleLinear()
       .range([height, 0])
-      .domain([0, (params.total * height) / width]);
+      .domain([0, (params.total * height) / width || 5]);
   }),
   getRoadPath = (() => {
     const range: NN[] = Array.apply(null, { length: 50 }).map(
       (d: any, i: NN, k: any[]) => (i / k.length) * params.total
     );
-    return mo(
-      (xScale: Mapper, yScale: Mapper, getY: Mapper) =>
-        "M" + range.map(x => [xScale(x), yScale(getY(x))]).join("L") + "Z"
-    );
+    return mo((xScale: Mapper, yScale: Mapper, getY: Mapper) => {
+      return "M" + range.map(x => [xScale(x), yScale(getY(x))]).join("L") + "Z";
+    });
   })();
 export {
   getXMax,
@@ -239,6 +239,48 @@ export {
 //   let yt = getY(state, xt);
 //   let mt = (yt - y) / (xt - x);
 // });
+
+export const getT = CS(
+  [get("x"), get("g1"), getA, getGetY, getX0, getGetRRadians],
+  (x, g1, a, getY, x0, getR) => {
+    const r = getR(x);
+    let y =
+      getY(x) +
+      (Math.sin(r) * params.car.width) / 2 +
+      params.car.height * Math.cos(r);
+    x =
+      x +
+      (Math.cos(r) * params.car.width) / 2 -
+      params.car.height * Math.sin(r);
+    let xt = x + Math.sqrt((a * (x - x0) * (x - x0) + g1 * x - y) / a),
+      yt = getY(xt),
+      mt = (yt - y) / (xt - x);
+    return { x, y, xt, yt, mt };
+  }
+);
+
+export const Xs = CS(
+  [get("x"), getA, get("g1"), getT, getX0],
+  (x, a, g1, { mt, xt, yt }, x0) => {
+    const y0 = yt - mt * xt;
+
+    return (
+      (2 * a * x0 -
+        g1 +
+        mt -
+        Math.sqrt(
+          -4 * a * g1 * x0 -
+            4 * a * params.block.height +
+            4 * a * mt * x0 +
+            4 * a * y0 +
+            g1 * g1 -
+            2 * g1 * mt +
+            mt * mt
+        )) /
+      (2 * a)
+    );
+  }
+);
 
 // export const getTangent = mo((state: State) => {
 //   let r = getRRadians(state);

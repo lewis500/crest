@@ -11,22 +11,24 @@ import {
   AppContext,
   State,
   getRoadPath,
-  // getTangent,
   getGetY,
   getX0,
   getGetRDegrees,
   getXScale,
   getYScale,
   getY0,
-  // getConnected,
-  getXMax
-  // getXs,
-  // getX0
+  getXMax,
+  getT,
+  Xs
 } from "src/ducks";
 import clsx from "clsx";
 import useStyles from "./styleVis";
 import { createSelector as CS } from "reselect";
 import useElementSize from "src/useElementSizeHook";
+// import { makeStyles } from "@material-ui/styles";
+import makeStyles from "@material-ui/styles/makeStyles";
+import * as colors from "@material-ui/core/colors";
+import range from "lodash.range";
 
 const EMPTY = {},
   M = {
@@ -71,12 +73,60 @@ const EMPTY = {},
 //     transform: `translate(${x},${y}) rotate(${r}) `
 //   });
 
-// const getTangentPath = mo((state: State) => {
-//   let { x, y, xt, yt, mt } = getTangent(state);
-//   return `M${scale(x)},${yScale(y)}L${scale(3 * xt)},${yScale(
-//     yt + 2 * mt * xt
-//   )}`;
-// });
+const Tangent = (state: State, xScale: Mapper, yScale: Mapper) => {
+  let t = getT(state);
+  let { x, y, xt, yt, mt } = getT(state);
+
+  return CE("path", {
+    d: `M${xScale(x)},${yScale(y)}L${xScale(3 * xt)},${yScale(
+      yt + 2 * mt * xt
+    )}`,
+    strokeWidth: "1px",
+    stroke: "black"
+  });
+};
+
+type Mapper = (v: number) => number;
+type RoadProps = {
+  x: Mapper;
+  y: Mapper;
+  getY: Mapper;
+  x0: number;
+  l: number;
+};
+const Road = (() => {
+  const useStyleRoad = makeStyles({
+    curve: {
+      fill: "none",
+      strokeWidth: "2px",
+      stroke: colors.lightBlue["A400"]
+    },
+    road: {
+      fill: colors.grey["200"]
+    }
+  });
+
+  return React.memo(({ x, y, getY, x0, l }: RoadProps) => {
+    const classes = useStyleRoad(EMPTY),
+      roadPath =
+        "M" +
+        range(0, params.total, params.total / 100)
+          .map(d => [x(d), y(getY(d))])
+          .join("L") +
+        "Z",
+      curvePath =
+        "M" +
+        range(x0, x0 + l, l / 50)
+          .map(d => [x(d), y(getY(d))])
+          .join("L");
+    return (
+      <g>
+        {CE("path", { className: classes.road, d: roadPath })}
+        {CE("path", { className: classes.curve, d: curvePath })}
+      </g>
+    );
+  });
+})();
 
 export default () => {
   const { state } = useContext(AppContext),
@@ -85,18 +135,25 @@ export default () => {
     { width, height } = marginer(useElementSize(containerRef)),
     xScale = getXScale(width),
     yScale = getYScale(height, width),
-    [carWidth, carHeight] = [8, 4];
-    console.log(getX0(state))
-  // [carWidth, carHeight] = useMemo(() => {
-  //   return [xScale(params.car.width), xScale(params.car.height)];
-  // }, [xScale]);
-  const getY = getGetY(state);
+    carWidth = xScale(params.car.width),
+    carHeight = xScale(params.car.height),
+    blockWidth = xScale(params.block.width),
+    blockHeight = xScale(params.block.height),
+    getY = getGetY(state);
+  // console.log(width, height);
+  // { x, y, xt, yt, mt } = getTangent(state);
 
   return (
     <div ref={containerRef} className={classes.container}>
       <svg className={classes.svg}>
-        <path className={classes.road} d={getRoadPath(xScale, yScale, getY)} />
-
+        {/* <path className={classes.road} d={getRoadPath(xScale, yScale, getY)} /> */}
+        {CE(Road, {
+          x: xScale,
+          y: yScale,
+          x0: getX0(state),
+          getY,
+          l: state.l
+        })}
         {CE("rect", {
           width: carWidth,
           height: carHeight,
@@ -107,6 +164,17 @@ export default () => {
             getY(state.x)
           )}) rotate(${getGetRDegrees(state)(state.x)}) `
         })}
+        {CE("rect", {
+          width: blockWidth,
+          height: blockHeight,
+          className: classes.block,
+          y: -blockHeight,
+          x: -blockWidth * 0.5,
+          transform: `translate(${xScale(params.block.x)},${yScale(
+            getY(params.block.x)
+          )}) rotate(${getGetRDegrees(state)(params.block.x)}) `
+        })}
+        {Tangent(state, xScale, yScale)}
         {/* <Car
           x={xScale(state.x)}
           y={yScale(getY(state.x))}
@@ -119,8 +187,16 @@ export default () => {
           className={classes.block}
           r={-getGetRDegrees(state)(params.block.x)}
         /> */}
-        {/* {state.x < getXMax(state) && ( */}
-        {/* <line x1={scale(getXs(state))} x2={scale(getXs(state)) } y1={0} y2={HEIGHT} stroke="black"/>
+        { (
+          <line
+            x1={xScale(Xs(state))}
+            x2={xScale(Xs(state))}
+            y1={0}
+            y2={height}
+            stroke="black"
+          />
+        )}
+        {/*
       <path
         d={getTangentPath(state)}
         className={clsx(
@@ -128,7 +204,6 @@ export default () => {
           getConnected(state) && classes.connected
         )}
       /> */}
-        {/* )} */}
       </svg>
     </div>
   );
