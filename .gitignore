@@ -2,7 +2,7 @@ node_modules/
 .DS_store
 *.log
 *.lock
-flow-typed/
+yarn.lock
 # public/
 TODO.md
 TODO
